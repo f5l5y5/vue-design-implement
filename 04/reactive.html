@@ -41,7 +41,8 @@
 				const depsMap = bucket.get(target)
 				if (!depsMap) return
 				const effects = depsMap.get(key)
-				effects && effects.forEach(fn => fn())
+				const effectsToRun = new Set(effects) // 新增
+				effectsToRun.forEach(effectFn => effectFn()) // 新增
 			}
 
 			let activeEffect
