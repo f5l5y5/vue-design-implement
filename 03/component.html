@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+	</head>
+	<body>
+		<script>
+			// 函数组件
+			const MyComponent = function () {
+				return {
+					tag: 'div',
+					props: {
+						onClick: () => alert('hello')
+					},
+					children: 'click me MyComponent'
+				}
+			}
+			// 对象组件
+			const MyComponent1 = {
+				render() {
+					return {
+						tag: 'div',
+						props: {
+							onClick: () => alert('hello MyComponent1')
+						},
+						children: 'click me object MyComponent1'
+					}
+				}
+			}
+
+			const vnode = {
+				tag: MyComponent
+			}
+			// const vnode = {
+			// 	tag: MyComponent1
+			// }
+			// const vnode = {
+			// 	tag: 'div',
+			// 	children: [
+			// 		{
+			// 			tag: 'span',
+			// 			children: '4324'
+			// 		},
+			// 		{
+			// 			tag: 'div',
+			// 			children: '8888'
+			// 		}
+			// 	]
+			// }
+
+			function renderer(vnode, container) {
+				if (typeof vnode.tag === 'string') {
+					mountElement(vnode, container)
+				} else if (typeof vnode.tag === 'function') {
+					mountComponent(vnode, container)
+				} else if (typeof vnode.tag === 'object') {
+					mountObjComponent(vnode, container)
+				}
+			}
+			/**
+			 *
+			 *
+			 *
+			 *
+			 */
+			function mountElement(vnode, container) {
+				const el = document.createElement(vnode.tag)
+				// 处理事件
+				for (const key in vnode.props) {
+					if (/^on/.test(key)) {
+						el.addEventListener(key.substr(2).toLowerCase(), vnode.props[key])
+					}
+				}
+				// 处理children
+				if (typeof vnode.children === 'string') {
+					el.appendChild(document.createTextNode(vnode.children))
+				} else if (Array.isArray(vnode.children)) {
+					vnode.children.forEach(child => renderer(child, el))
+				}
+				container.appendChild(el)
+			}
+
+			function mountComponent(vnode, container) {
+				const subtree = vnode.tag()
+				renderer(subtree, container)
+			}
+			function mountObjComponent(vnode, container) {
+				const subtree = vnode.tag.render()
+				renderer(subtree, container)
+			}
+
+			renderer(vnode, document.body)
+		</script>
+	</body>
+</html>
