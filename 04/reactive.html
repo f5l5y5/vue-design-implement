@@ -12,7 +12,9 @@
 			const data = { text: 'hello,world' }
 			const obj = new Proxy(data, {
 				get(target, key) {
-					bucket.add(effect)
+					if (activeEffect) {
+						bucket.add(activeEffect)
+					}
 					return target[key]
 				},
 				set(target, key, newVal) {
@@ -22,11 +24,16 @@
 				}
 			})
 
-			function effect() {
-				document.body.innerText = obj.text
+			let activeEffect
+
+			function effect(fn) {
+				activeEffect = fn
+				fn()
 			}
 
-			effect()
+			effect(() => {
+				document.body.innerText = obj.text
+			})
 
 			setTimeout(() => {
 				obj.text = 'hello,vue3'
