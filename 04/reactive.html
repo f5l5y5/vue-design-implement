@@ -9,7 +9,7 @@
 	<body>
 		<script>
 			const bucket = new WeakMap()
-			const data = { text: 'hello,world' }
+			const data = { ok: true, text: 'hello,world' }
 			const obj = new Proxy(data, {
 				get(target, key) {
 					track(target, key)
@@ -32,6 +32,9 @@
 					depsMap.set(key, (deps = new Set()))
 				}
 				deps.add(activeEffect)
+				// deps 就是一个与当前副作用函数存在联系的依赖集合
+				// 将其添加到 activeEffect.deps 数组中
+				activeEffect.deps.push(deps)
 			}
 
 			function trigger(target, key) {
@@ -44,21 +47,32 @@
 			let activeEffect
 
 			function effect(fn) {
-				activeEffect = fn
-				fn()
+				const effectFn = () => {
+					cleanup(effectFn) // 调用 cleanup 函数完成清除工作
+					activeEffect = effectFn //当 effectFn 执行时，将其设置为当前激活的副作用函数
+					fn()
+				}
+				effectFn.deps = [] //存储所有包含当前副作用函数的依赖集合
+				effectFn()
+			}
+
+			function cleanup(effectFn) {
+				for (let i = 0; i < effectFn.deps.length; i++) {
+					const deps = effectFn.deps[i]
+					deps.delete(effectFn)
+				}
+				effectFn.deps.length = 0
 			}
 
 			effect(() => {
-				console.log('effect run') // 会打印 2 次
-				document.body.innerText = obj.text
+				console.log('打印***bucket======>', bucket)
+				console.log(activeEffect.deps)
+				document.body.innerText = obj.ok ? obj.text : 'not'
 			})
 
 			setTimeout(() => {
-				obj.notExist = 'hello,vue3'
-			}, 1000)
-
-			setTimeout(() => {
-				obj.text = 'hello,vue3'
+				// obj.text = 'hello,vue3'
+				obj.ok = false
 			}, 2000)
 		</script>
 	</body>
