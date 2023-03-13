@@ -1,0 +1,12 @@
+{
+	"name": "02",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"scripts": {
+		"build": "rollup input.js -f esm -o bundle.js"
+	},
+	"devDependencies": {
+		"rollup": "^3.19.1"
+	}
+}
