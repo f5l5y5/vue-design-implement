@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+	</head>
+	<body>
+		<script>
+			const bucket = new WeakMap()
+			const data = { foo: 1, bar: 2 }
+			const obj = new Proxy(data, {
+				get(target, key) {
+					track(target, key)
+					return target[key]
+				},
+				set(target, key, newVal) {
+					target[key] = newVal
+					trigger(target, key)
+				}
+			})
+
+			function track(target, key) {
+				if (!activeEffect) return
+				let depsMap = bucket.get(target)
+				if (!depsMap) {
+					bucket.set(target, (depsMap = new Map()))
+				}
+				let deps = depsMap.get(key)
+				if (!deps) {
+					depsMap.set(key, (deps = new Set()))
+				}
+				deps.add(activeEffect)
+				// deps 就是一个与当前副作用函数存在联系的依赖集合
+				// 将其添加到 activeEffect.deps 数组中
+				activeEffect.deps.push(deps)
+			}
+
+			function trigger(target, key) {
+				const depsMap = bucket.get(target)
+				if (!depsMap) return
+				const effects = depsMap.get(key)
+				const effectsToRun = new Set()
+				effects &&
+					effects.forEach(effectFn => {
+						// 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不触发执行
+						if (effectFn !== activeEffect) {
+							effectsToRun.add(effectFn)
+						}
+					})
+				effectsToRun.forEach(effectFn => {
+					// 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
+					if (effectFn.options.scheduler) {
+						effectFn.options.scheduler(effectFn)
+					} else {
+						effectFn()
+					}
+				}) // 新增
+			}
+
+			let activeEffect
+			const effectStack = []
+
+			function effect(fn, options = {}) {
+				const effectFn = () => {
+					cleanup(effectFn) // 调用 cleanup 函数完成清除工作
+					activeEffect = effectFn //当 effectFn 执行时，将其设置为当前激活的副作用函数
+					effectStack.push(effectFn)
+					const res = fn()
+					effectStack.pop()
+					activeEffect = effectStack[effectStack.length - 1]
+					return res
+				}
+				// 将 options 挂载到 effectFn 上
+				effectFn.options = options
+				effectFn.deps = [] //存储所有包含当前副作用函数的依赖集合
+				if (!options.lazy) {
+					// 执行副作用函数
+					effectFn()
+				}
+				// 将副作用函数作为返回值返回
+				return effectFn
+			}
+
+			function cleanup(effectFn) {
+				for (let i = 0; i < effectFn.deps.length; i++) {
+					const deps = effectFn.deps[i]
+					deps.delete(effectFn)
+				}
+				effectFn.deps.length = 0
+			}
+
+			const jobQueue = new Set()
+			const p = Promise.resolve()
+			let isFlushing = false
+			function flushJob() {
+				if (isFlushing) return
+				isFlushing = true
+				p.then(() => {
+					jobQueue.forEach(job => job())
+				}).finally(() => {
+					isFlushing = false
+				})
+			}
+
+			function computed(getter) {
+				const effectFn = effect(getter, {
+					lazy: true
+				})
+				const obj = {
+					get value() {
+						return effectFn()
+					}
+				}
+				return obj
+			}
+
+			const sumRes = computed(() => obj.foo + obj.bar)
+
+			console.log('结束了', sumRes.value)
+		</script>
+	</body>
+</html>
