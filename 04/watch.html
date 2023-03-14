@@ -125,7 +125,15 @@
 					() => getter(),
 					{
 						lazy: true,
-						scheduler: job
+						scheduler: () => {
+							// 在调度函数中判断 flush 是否为 'post'，如果是，将其放到微任务队列中执行
+							if (options.flush === 'post') {
+								const p = Promise.resolve()
+								p.then(job)
+							} else {
+								job()
+							}
+						}
 					}
 				)
 				if (options.immediate) {
@@ -155,7 +163,7 @@
 					console.log(newValue, oldValue)
 				},
 				{
-					immediate: true
+					flush: 'pre'
 				}
 			)
 		</script>
