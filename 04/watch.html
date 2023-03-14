@@ -105,9 +105,15 @@
 			}
 
 			function watch(source, cb) {
+				let getter
+				if (typeof source === 'function') {
+					getter = source
+				} else {
+					getter = () => traverse(source)
+				}
 				effect(
 					// 调用 traverse 递归地读取
-					() => traverse(source),
+					() => getter(),
 					{
 						scheduler() {
 							cb()
@@ -129,9 +135,12 @@
 				return value
 			}
 
-			watch(obj, () => {
-				console.log('obj.foo变化')
-			})
+			watch(
+				() => obj.bar,
+				() => {
+					console.log('obj.foo变化')
+				}
+			)
 		</script>
 	</body>
 </html>
