@@ -105,12 +105,24 @@
 			}
 
 			function computed(getter) {
+				let value
+				// dirty 标志，用来标识是否需要重新计算值，为 true 则意味着“脏”，需要计算
+				let dirty = true
 				const effectFn = effect(getter, {
-					lazy: true
+					lazy: true,
+					// 添加调度器，在调度器中将 dirty 重置为 true
+					scheduler() {
+						dirty = true
+					}
 				})
 				const obj = {
 					get value() {
-						return effectFn()
+						if (dirty) {
+							value = effectFn()
+							dirty = false
+						}
+						trigger(obj, 'value')
+						return value
 					}
 				}
 				return obj
@@ -118,7 +130,11 @@
 
 			const sumRes = computed(() => obj.foo + obj.bar)
 
-			console.log('结束了', sumRes.value)
+			effect(() => {
+				console.log('打印***sumRes.value', sumRes.value)
+			})
+			obj.foo++
+			// console.log('结束了', sumRes.value)
 		</script>
 	</body>
 </html>
