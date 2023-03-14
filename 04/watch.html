@@ -104,7 +104,7 @@
 				})
 			}
 
-			function watch(source, cb) {
+			function watch(source, cb, options = {}) {
 				let getter
 				if (typeof source === 'function') {
 					getter = source
@@ -112,23 +112,28 @@
 					getter = () => traverse(source)
 				}
 				let oldValue, newVal
+
+				// 提取 scheduler 调度函数为一个独立的 job 函数
+				const job = () => {
+					newVal = effectFn()
+					cb(newVal, oldValue)
+					oldValue = newVal
+				}
+
 				const effectFn = effect(
 					// 调用 traverse 递归地读取
 					() => getter(),
 					{
 						lazy: true,
-						scheduler() {
-							// 在 scheduler 中重新执行副作用函数，得到的是新值
-							newVal = effectFn()
-							// 将旧值和新值作为回调函数的参数
-							cb(newVal, oldValue)
-							// 更新旧值，不然下一次会得到错误的旧值
-							oldValue = newVal
-						}
+						scheduler: job
 					}
 				)
-				// 手动调用副作用函数，拿到的值就是旧值
-				oldValue = effectFn()
+				if (options.immediate) {
+					job()
+				} else {
+					// 手动调用副作用函数，拿到的值就是旧值
+					oldValue = effectFn()
+				}
 			}
 
 			function traverse(value, seen = new Set()) {
@@ -148,6 +153,9 @@
 				() => obj.foo,
 				(newValue, oldValue) => {
 					console.log(newValue, oldValue)
+				},
+				{
+					immediate: true
 				}
 			)
 		</script>
