@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+	</head>
+	<body>
+		<script>
+			const bucket = new WeakMap()
+			const data = { foo: true, bar: true }
+			const obj = new Proxy(data, {
+				get(target, key) {
+					track(target, key)
+					return target[key]
+				},
+				set(target, key, newVal) {
+					target[key] = newVal
+					trigger(target, key)
+				}
+			})
+
+			function track(target, key) {
+				if (!activeEffect) return
+				let depsMap = bucket.get(target)
+				if (!depsMap) {
+					bucket.set(target, (depsMap = new Map()))
+				}
+				let deps = depsMap.get(key)
+				if (!deps) {
+					depsMap.set(key, (deps = new Set()))
+				}
+				deps.add(activeEffect)
+				// deps 就是一个与当前副作用函数存在联系的依赖集合
+				// 将其添加到 activeEffect.deps 数组中
+				activeEffect.deps.push(deps)
+			}
+
+			function trigger(target, key) {
+				const depsMap = bucket.get(target)
+				if (!depsMap) return
+				const effects = depsMap.get(key)
+				const effectsToRun = new Set(effects) // 新增
+				effectsToRun.forEach(effectFn => effectFn()) // 新增
+			}
+
+			let activeEffect
+			const effectStack = []
+
+			function effect(fn) {
+				const effectFn = () => {
+					cleanup(effectFn) // 调用 cleanup 函数完成清除工作
+					activeEffect = effectFn //当 effectFn 执行时，将其设置为当前激活的副作用函数
+					effectStack.push(effectFn)
+					fn()
+					effectStack.pop()
+					activeEffect = effectStack[effectStack.length - 1]
+				}
+				effectFn.deps = [] //存储所有包含当前副作用函数的依赖集合
+				effectFn()
+			}
+
+			function cleanup(effectFn) {
+				for (let i = 0; i < effectFn.deps.length; i++) {
+					const deps = effectFn.deps[i]
+					deps.delete(effectFn)
+				}
+				effectFn.deps.length = 0
+			}
+
+			let temp1, temp2
+
+			effect(function effectFn1() {
+				console.log('effectFn1 执行')
+
+				effect(function effectFn2() {
+					console.log('effectFn2 执行')
+					// 在 effectFn2 中读取 obj.bar 属性
+					temp2 = obj.bar
+				})
+				// 在 effectFn1 中读取 obj.foo 属性
+				temp1 = obj.foo
+			})
+
+			obj.bar = 1
+			console.log('打印***bucket', bucket)
+		</script>
+	</body>
+</html>
