@@ -4,8 +4,17 @@
 		b: 2,
 		fn(name) {
 			console.log('我是', name)
+		},
+		get bar() {
+			console.log('打印***111', 111)
+			return this.a
+		},
+		set bar(str) {
+			console.log('打印***str', str)
+			this.a = 3
 		}
 	}
+	console.log('打印***obj.bar', obj.bar(3))
 
 	const p = new Proxy(obj, {
 		get(target, key, receiver) {
