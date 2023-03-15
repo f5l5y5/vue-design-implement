@@ -1,0 +1,45 @@
+<script>
+	const obj = {
+		a: 1,
+		b: 2,
+		fn(name) {
+			console.log('我是', name)
+		}
+	}
+
+	const p = new Proxy(obj, {
+		get(target, key, receiver) {
+			console.log('打印***get', target, key, receiver)
+			console.log('打印***get', receiver === p)
+			return target[key]
+		},
+		set(target, key, value, receiver) {
+			console.log('打印***set', target, key, value, receiver)
+			target[key] = value
+		},
+		apply(target, thisArg, argArray) {
+			console.log('打印***apply', target, thisArg, argArray)
+			target.call(thisArg, ...argArray)
+		}
+	})
+
+	// p.a = 2
+	// const a = p.b
+
+	const fn = name => {
+		console.log('我是', name)
+	}
+
+	const p2 = new Proxy(fn, {
+		apply(target, thisArg, argArray) {
+			console.log('打印***apply', target, thisArg, argArray)
+			target.call(thisArg, ...argArray)
+		}
+	})
+
+	// p2('hcy')
+
+	// Reflect.set(p, 'a', 11)
+	// console.log(Reflect.get(obj, 'a'))
+	Reflect.apply(p.fn, undefined, ['fasd'])
+</script>
