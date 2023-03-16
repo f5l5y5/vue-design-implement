@@ -24,6 +24,17 @@
 			console.log('打印***ownKeys', target)
 			track(target, ITERATE_KEY)
 			return Reflect.ownKeys(target)
+		},
+		deleteProperty(target, key) {
+			// 检查被操作的属性是否是对象自己的属性
+			const hadKey = Object.prototype.hasOwnProperty.call(target, key)
+			// 使用 Reflect.deleteProperty 完成属性的删除
+			const res = Reflect.deleteProperty(target, key)
+			if (res && hadKey) {
+				// 只有当被删除的属性是对象自己的属性并且成功删除时，才触发更新
+				trigger(target, key, 'DELETE')
+			}
+			return res
 		}
 	})
 
@@ -57,8 +68,8 @@
 					effectsToRun.add(effectFn)
 				}
 			})
-		// 只有当操作类型为 'ADD' 时，才触发与 ITERATE_KEY 相关联的副作用函数重新执行
-		if (type === 'ADD') {
+		// 当操作类型为 ADD 或 DELETE 时，需要触发与 ITERATE_KEY 相关联的副作用函数重新执行
+		if (type === 'ADD' || type === 'DELETE') {
 			// 取得与 ITERATE_KEY 相关联的副作用函数
 			const iterateEffects = depsMap.get(ITERATE_KEY)
 			// 将与 ITERATE_KEY 相关联的副作用函数也添加到 effectsToRun
@@ -192,5 +203,5 @@
 		}
 	})
 
-	obj.foo = 2
+	delete obj.foo
 </script>
