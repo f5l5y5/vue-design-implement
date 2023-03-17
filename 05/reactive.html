@@ -5,8 +5,10 @@
 	function reactive(data) {
 		return new Proxy(data, {
 			get(target, key, receiver) {
+				if (key === 'raw') {
+					return target
+				}
 				track(target, key)
-				console.log('打印***',)
 				return Reflect.get(target, key, receiver)
 			},
 			set(target, key, newVal, receiver) {
@@ -19,8 +21,11 @@
 				const res = Reflect.set(target, key, newVal, receiver)
 				// 将 type 作为第三个参数传递给 trigger 函数
 				// 比较新值与旧值，只要当不全等的时候才触发响应
-				if (oldVal !== newVal && (newVal === newVal || oldVal === oldVal)) {
-					trigger(target, key, type)
+				// target === receiver.raw 说明 receiver 就是 target 的代理对象
+				if (target === receiver.raw) {
+					if (oldVal !== newVal && (newVal === newVal || oldVal === oldVal)) {
+						trigger(target, key, type)
+					}
 				}
 				return res
 			},
@@ -29,7 +34,6 @@
 				return Reflect.has(target, key)
 			},
 			ownKeys(target) {
-				console.log('打印***ownKeys', target)
 				track(target, ITERATE_KEY)
 				return Reflect.ownKeys(target)
 			},
@@ -212,8 +216,9 @@
 	const parent = reactive(proto)
 	Object.setPrototypeOf(child, parent)
 	effect(() => {
-		console.log('打印***key', child.bar)
+		child.bar
 	})
 
 	child.bar = 2
+	console.log(child.raw)
 </script>
