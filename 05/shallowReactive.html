@@ -1,0 +1,224 @@
+<script>
+	const bucket = new WeakMap()
+	const ITERATE_KEY = Symbol()
+
+	function reactive(data) {
+		return new Proxy(data, {
+			get(target, key, receiver) {
+				if (key === 'raw') {
+					return target
+				}
+				track(target, key)
+				// 得到原始值结果
+				const res = Reflect.get(target, key, receiver)
+				if (typeof res === 'object' && res !== null) {
+					// 调用 reactive 将结果包装成响应式数据并返回
+					return reactive(res)
+				}
+				return res
+			},
+			set(target, key, newVal, receiver) {
+				// 旧值
+				const oldVal = target[key]
+
+				// 如果属性不存在，则说明是在添加新属性，否则是设置已有属性
+				const type = Object.prototype.hasOwnProperty.call(target, key) ? 'SET' : 'ADD'
+				// 设置属性值
+				const res = Reflect.set(target, key, newVal, receiver)
+				// 将 type 作为第三个参数传递给 trigger 函数
+				// 比较新值与旧值，只要当不全等的时候才触发响应
+				// target === receiver.raw 说明 receiver 就是 target 的代理对象
+				if (target === receiver.raw) {
+					if (oldVal !== newVal && (newVal === newVal || oldVal === oldVal)) {
+						trigger(target, key, type)
+					}
+				}
+				return res
+			},
+			has(target, key) {
+				track(target, key)
+				return Reflect.has(target, key)
+			},
+			ownKeys(target) {
+				track(target, ITERATE_KEY)
+				return Reflect.ownKeys(target)
+			},
+			deleteProperty(target, key) {
+				// 检查被操作的属性是否是对象自己的属性
+				const hadKey = Object.prototype.hasOwnProperty.call(target, key)
+				// 使用 Reflect.deleteProperty 完成属性的删除
+				const res = Reflect.deleteProperty(target, key)
+				if (res && hadKey) {
+					// 只有当被删除的属性是对象自己的属性并且成功删除时，才触发更新
+					trigger(target, key, 'DELETE')
+				}
+				return res
+			}
+		})
+	}
+
+	function track(target, key) {
+		if (!activeEffect) return
+		let depsMap = bucket.get(target)
+		if (!depsMap) {
+			bucket.set(target, (depsMap = new Map()))
+		}
+		let deps = depsMap.get(key)
+		if (!deps) {
+			depsMap.set(key, (deps = new Set()))
+		}
+		deps.add(activeEffect)
+		// deps 就是一个与当前副作用函数存在联系的依赖集合
+		// 将其添加到 activeEffect.deps 数组中
+		activeEffect.deps.push(deps)
+	}
+
+	function trigger(target, key, type) {
+		const depsMap = bucket.get(target)
+		if (!depsMap) return
+
+		const effects = depsMap.get(key)
+
+		const effectsToRun = new Set()
+		// 将与 key 相关联的副作用函数添加到 effectsToRun
+		effects &&
+			effects.forEach(effectFn => {
+				if (effectFn !== activeEffect) {
+					effectsToRun.add(effectFn)
+				}
+			})
+		// 当操作类型为 ADD 或 DELETE 时，需要触发与 ITERATE_KEY 相关联的副作用函数重新执行
+		if (type === 'ADD' || type === 'DELETE') {
+			// 取得与 ITERATE_KEY 相关联的副作用函数
+			const iterateEffects = depsMap.get(ITERATE_KEY)
+			// 将与 ITERATE_KEY 相关联的副作用函数也添加到 effectsToRun
+			iterateEffects &&
+				iterateEffects.forEach(effectFn => {
+					if (effectFn !== activeEffect) {
+						effectsToRun.add(effectFn)
+					}
+				})
+		}
+		effectsToRun.forEach(effectFn => {
+			// 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
+			if (effectFn.options.scheduler) {
+				effectFn.options.scheduler(effectFn)
+			} else {
+				effectFn()
+			}
+		}) // 新增
+	}
+
+	let activeEffect
+	const effectStack = []
+
+	function effect(fn, options = {}) {
+		const effectFn = () => {
+			cleanup(effectFn) // 调用 cleanup 函数完成清除工作
+			activeEffect = effectFn //当 effectFn 执行时，将其设置为当前激活的副作用函数
+			effectStack.push(effectFn)
+			const res = fn()
+			effectStack.pop()
+			activeEffect = effectStack[effectStack.length - 1]
+			return res
+		}
+		// 将 options 挂载到 effectFn 上
+		effectFn.options = options
+		effectFn.deps = [] //存储所有包含当前副作用函数的依赖集合
+		if (!options.lazy) {
+			// 执行副作用函数
+			effectFn()
+		}
+		// 将副作用函数作为返回值返回
+		return effectFn
+	}
+
+	function cleanup(effectFn) {
+		for (let i = 0; i < effectFn.deps.length; i++) {
+			const deps = effectFn.deps[i]
+			deps.delete(effectFn)
+		}
+		effectFn.deps.length = 0
+	}
+
+	const jobQueue = new Set()
+	const p = Promise.resolve()
+	let isFlushing = false
+	function flushJob() {
+		if (isFlushing) return
+		isFlushing = true
+		p.then(() => {
+			jobQueue.forEach(job => job())
+		}).finally(() => {
+			isFlushing = false
+		})
+	}
+
+	function watch(source, cb, options = {}) {
+		let getter
+		if (typeof source === 'function') {
+			getter = source
+		} else {
+			getter = () => traverse(source)
+		}
+		let oldValue, newVal
+
+		let cleanup
+		function onInvalidate(fn) {
+			cleanup = fn
+		}
+
+		// 提取 scheduler 调度函数为一个独立的 job 函数
+		const job = () => {
+			newVal = effectFn()
+			// 在调用回调函数 cb 之前，先调用过期回调
+			if (cleanup) {
+				cleanup()
+			}
+			cb(newVal, oldValue, onInvalidate)
+			oldValue = newVal
+		}
+
+		const effectFn = effect(
+			// 调用 traverse 递归地读取
+			() => getter(),
+			{
+				lazy: true,
+				scheduler: () => {
+					// 在调度函数中判断 flush 是否为 'post'，如果是，将其放到微任务队列中执行
+					if (options.flush === 'post') {
+						const p = Promise.resolve()
+						p.then(job)
+					} else {
+						job()
+					}
+				}
+			}
+		)
+		if (options.immediate) {
+			job()
+		} else {
+			// 手动调用副作用函数，拿到的值就是旧值
+			oldValue = effectFn()
+		}
+	}
+
+	function traverse(value, seen = new Set()) {
+		// 如果要读取的数据是原始值，或者已经被读取过了，那么什么都不做
+		if (typeof value !== 'object' || value === null || seen.has(value)) return
+		// 将数据添加到 seen 中，代表遍历地读取过了，避免循环引用引起的死循环
+		seen.add(value)
+		// 暂时不考虑数组等其他结构
+		// 假设 value 就是一个对象，使用 for...in 读取对象的每一个值，并递归地调用 traverse 进行处理
+		for (const k in value) {
+			traverse(value[k], seen)
+		}
+		return value
+	}
+	// ========================================
+	const obj = reactive({ foo: { bar: 1 } })
+	effect(() => {
+		console.log(obj.foo.bar)
+	})
+	obj.foo.bar = 2
+</script>
