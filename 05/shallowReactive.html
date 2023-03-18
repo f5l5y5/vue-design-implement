@@ -1,11 +1,14 @@
 <script>
 	const bucket = new WeakMap()
 	const ITERATE_KEY = Symbol()
-	function shallowReactive(data, isShallow = true) {
-		return reactive(data, isShallow)
+	function shallowReactive(data) {
+		return createReactive(data, true)
+	}
+	function reactive(data) {
+		return createReactive(data, false)
 	}
 
-	function reactive(data, isShallow) {
+	function createReactive(data, isShallow) {
 		return new Proxy(data, {
 			get(target, key, receiver) {
 				if (key === 'raw') {
