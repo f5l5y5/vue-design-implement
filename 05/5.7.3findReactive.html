@@ -21,6 +21,19 @@
 		reactiveMap.set(obj, proxy)
 		return proxy
 	}
+	const originMethod = Array.prototype.includes
+	const arrayInstrumentations = {
+		includes: function (...args) {
+			// this 是代理对象，先在代理对象中查找，将结果存储到 res 中
+			let res = originMethod.apply(this, args)
+			if (res === false) {
+				// res 为 false 说明没找到，通过 this.raw 拿到原始数组，再去其中查找并更新 res 值
+				res = originMethod.apply(this.raw, args)
+			}
+			// 返回最终结果
+			return res
+		}
+	}
 
 	function createReactive(data, isShallow = false, isReadonly = false) {
 		return new Proxy(data, {
@@ -28,6 +41,12 @@
 				if (key === 'raw') {
 					return target
 				}
+				// 如果操作的目标对象是数组，并且 key 存在于 arrayInstrumentations 上，
+				// 那么返回定义在 arrayInstrumentations 上的值
+				if (Array.isArray(target) && arrayInstrumentations.hasOwnProperty(key)) {
+					return Reflect.get(arrayInstrumentations, key, receiver)
+				}
+
 				if (!isReadonly && typeof key !== 'symbol') {
 					track(target, key)
 				}
@@ -290,7 +309,8 @@
 	const obj = {}
 	const arr = reactive([obj])
 	effect(() => {
-		console.log(arr.includes(arr[0]))
+		// console.log(arr.includes(arr[0]))
+		console.log(arr.includes(obj))
 	})
 	// arr[0] = 2
 </script>
