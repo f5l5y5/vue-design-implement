@@ -17,7 +17,7 @@
 				if (key === 'raw') {
 					return target
 				}
-				if (!isReadonly) {
+				if (!isReadonly && typeof key !== 'symbol') {
 					track(target, key)
 				}
 				// 得到原始值结果
@@ -277,11 +277,55 @@
 
 	const arr = reactive(['foo'])
 	effect(() => {
-		console.log('effect')
-		for (const key in arr) {
+		for (const key of arr) {
 			console.log(key)
 		}
 	})
 	arr[1] = 'bar'
 	arr.length = 0
+	// 对象实现iterator
+	// const obj = {
+	// 	val: 0,
+	// 	[Symbol.iterator]() {
+	// 		return {
+	// 			next() {
+	// 				return {
+	// 					value: obj.val++,
+	// 					done: obj.val > 10 ? true : false
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// for (const iterator of obj) {
+	// 	console.log(iterator)
+	// }
+	// // 数组使用
+	// const arr1 = [1, 2, 3, 4, 5]
+	// const itr = arr1[Symbol.iterator]()
+	// console.log(itr.next())
+	// console.log(itr.next())
+	// console.log(itr.next())
+	// console.log(itr.next())
+	// console.log(itr.next())
+	// console.log(itr.next())
+
+	// const arr1 = [1, 2, 3, 4, 5]
+	// arr1[Symbol.iterator] = function () {
+	// 	const target = this
+	// 	const len = target.length
+	// 	let index = 0
+	// 	return {
+	// 		next() {
+	// 			return {
+	// 				value: index < len ? target[index] : undefined,
+	// 				done: index++ >= len
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// for (const val of arr1) {
+	// 	console.log(val)
+	// }
 </script>
