@@ -334,15 +334,9 @@
 		return value
 	}
 	// ========================================
-
-	const arr = reactive([])
+	const proxy = reactive(new Map([['key', 1]]))
 	effect(() => {
-		console.log('打印***arr', arr)
-		arr.push(1)
+		console.log(proxy.get('key'))
 	})
-	effect(() => {
-		console.log('打印***arr', arr)
-		arr.push(2)
-	})
-	// arr[0] = 2
+	proxy.set('key', 2)
 </script>
