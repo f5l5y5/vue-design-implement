@@ -64,10 +64,16 @@
 			return res
 		}
 	})
-
+	// 在 createReactive 里封装用于代理 Set/Map 类型数据的逻辑
 	function createReactive(data, isShallow = false, isReadonly = false) {
 		return new Proxy(data, {
 			get(target, key, receiver) {
+				if (key === 'size') {
+					return Reflect.get(target, key, target)
+				}
+				// 将方法与原始数据对象 target 绑定后返回
+
+				return target[key].bind(target)
 				if (key === 'raw') {
 					return target
 				}
@@ -339,21 +345,22 @@
 	// 	console.log(proxy.get('key'))
 	// })
 	// proxy.set('key', 2)
-	const s = new Set([1, 2, 3])
-	const p1 = new Proxy(s, {
-		get(target, key, receiver) {
-			console.log('打印***key', key)
-			// 读取size 通过指定第三个参数 receiver 为原始对象 target 从而修复问题
-			if (key === 'size') {
-				return Reflect.get(target, key, target)
-			}
-			// 读取其他属性的默认行为
-			// 将方法与原始数据对象 target 绑定后返回
+	// const s = new Set([1, 2, 3])
+	// const p1 = new Proxy(s, {
+	// 	get(target, key, receiver) {
+	// 		console.log('打印***key', key)
+	// 		// 读取size 通过指定第三个参数 receiver 为原始对象 target 从而修复问题
+	// 		if (key === 'size') {
+	// 			return Reflect.get(target, key, target)
+	// 		}
+	// 		// 读取其他属性的默认行为
+	// 		// 将方法与原始数据对象 target 绑定后返回
 
-			// return Reflect.get(target, key, receiver)
-			return target[key].bind(target)
-		}
-	})
+	// 		// return Reflect.get(target, key, receiver)
+	// 		return target[key].bind(target)
+	// 	}
+	// })
+	const p1 = reactive(new Set([1, 2, 3]))
 	console.log(p1.size)
 	p1.delete(1)
 </script>
