@@ -348,8 +348,12 @@
 				return Reflect.get(target, key, target)
 			}
 			// 读取其他属性的默认行为
-			return Reflect.get(target, key, receiver)
+			// 将方法与原始数据对象 target 绑定后返回
+
+			// return Reflect.get(target, key, receiver)
+			return target[key].bind(target)
 		}
 	})
 	console.log(p1.size)
+	p1.delete(1)
 </script>
