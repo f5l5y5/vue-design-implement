@@ -295,8 +295,16 @@
 					}
 				})
 		}
+
+		// 如果操作类型是 SET，并且目标对象是 Map 类型的数据，
+		// 也应该触发那些与 ITERATE_KEY 相关联的副作用函数重新执行
+
 		// 当操作类型 type 为 ADD 时，会取出与 ITERATE_KEY 相关联的副作用函数并执行
-		if (type === 'ADD' || type === 'DELETE') {
+		if (
+			type === 'ADD' ||
+			type === 'DELETE' ||
+			(type === 'SET' && Object.prototype.toString.call(target) === '[object Map]')
+		) {
 			// 取得与 ITERATE_KEY 相关联的副作用函数
 			const iterateEffects = depsMap.get(ITERATE_KEY)
 			// 将与 ITERATE_KEY 相关联的副作用函数也添加到 effectsToRun
@@ -443,13 +451,24 @@
 	// })
 	// p1.set({ key: 2 }, { value: 2 })
 
-	const key = { key: 1 }
-	const value = new Set([1, 2, 3])
-	const p1 = reactive(new Map([[key, value]]))
+	// const key = { key: 1 }
+	// const value = new Set([1, 2, 3])
+	// const p1 = reactive(new Map([[key, value]]))
+	// effect(() => {
+	// 	p1.forEach(function (value, key) {
+	// 		console.log(value.size)
+	// 	})
+	// })
+	// p1.get(key).delete(1)
+
+	// for in
+	const p1 = reactive(new Map([['key', 1]]))
+
 	effect(() => {
 		p1.forEach(function (value, key) {
-			console.log(value.size)
+			// forEach 循环不仅关心集合的键，还关心集合的值
+			console.log(value)
 		})
 	})
-	p1.get(key).delete(1)
+	p1.set('key', 2) // 即使操作类型是 SET，也应该触发响应
 </script>
