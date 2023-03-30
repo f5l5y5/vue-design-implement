@@ -64,9 +64,55 @@
 			return res
 		}
 	})
+	// 抽离为独立的函数，便于复用
+	function iterationMethod() {
+		const target = this.raw
+		const itr = target[Symbol.iterator]()
+		const wrap = val => (typeof val === 'object' && val !== null ? reactive(val) : val)
+
+		// 调用 track 函数建立响应联系
+		track(target, ITERATE_KEY)
+		// 返回自定义的迭代器
+		return {
+			next() {
+				// 调用原始迭代器的 next 方法获取 value 和 done
+				const { value, done } = itr.next()
+				return {
+					// 如果 value 不是 undefined，则对其进行包裹
+					value: value ? [wrap(value[0]), wrap(value[1])] : value,
+					done
+				}
+			},
+			[Symbol.iterator]() {
+				return this
+			}
+		}
+	}
 
 	// 定义一个对象，将自定义的 add 方法定义到该对象下
 	const mutableInstrumentations = {
+		[Symbol.iterator]() {
+			// 获取原始数据对象 target
+			const target = this.raw
+			// 获取原始迭代器方法
+			const itr = target[Symbol.iterator]()
+			const wrap = val => (typeof val === 'object' && val !== null ? reactive(val) : val)
+
+			// 调用 track 函数建立响应联系
+			track(target, ITERATE_KEY)
+			// 返回自定义的迭代器
+			return {
+				next() {
+					// 调用原始迭代器的 next 方法获取 value 和 done
+					const { value, done } = itr.next()
+					return {
+						// 如果 value 不是 undefined，则对其进行包裹
+						value: value ? [wrap(value[0]), wrap(value[1])] : value,
+						done
+					}
+				}
+			}
+		},
 		// 接收第二个参数
 		forEach(callback, thisArg) {
 			// wrap 函数用来把可代理的值转换为响应式数据
@@ -433,16 +479,35 @@
 	}
 
 	// =======================
-	const m = new Map([
-		['key1', 'value1'],
-		['key2', 'value2']
-	])
+	// const m = new Map([
+	// 	['key1', 'value1'],
+	// 	['key2', 'value2']
+	// ])
 
-	for (const [key, value] of m) {
-		console.log(key, value)
-	}
+	// for (const [key, value] of m) {
+	// 	console.log(key, value)
+	// }
 
-	for (const [key, value] of m.entries()) {
-		console.log(key, value)
-	}
+	// for (const [key, value] of m.entries()) {
+	// 	console.log(key, value)
+	// }
+
+	// const itr = m[Symbol.iterator]()
+	// console.log(itr.next());
+	// console.log(itr.next());
+	// console.log(itr.next());
+	// console.log(m[Symbol.iterator]===m.entries);
+	const m = reactive(
+		new Map([
+			['key1', 'value1'],
+			['key2', 'value2']
+		])
+	)
+
+	effect(() => {
+		for (const [key, value] of m) {
+			console.log(key, value)
+		}
+	})
+	m.set('key3', 'value3')
 </script>
