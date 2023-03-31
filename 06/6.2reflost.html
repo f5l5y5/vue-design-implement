@@ -1,0 +1,51 @@
+<script>
+	// obj 是响应式数据
+	const obj = reactive({ foo: 1, bar: 2 })
+	// newObj 对象下具有与 obj 对象同名的属性，并且每个属性值都是一个对象，
+	// 该对象具有一个访问器属性 value，当读取 value 的值时，其实读取的是 obj对象下相应的属性值
+	// const newObj = {
+	// 	foo: {
+	// 		get value() {
+	// 			return obj.foo
+	// 		}
+	// 	},
+	// 	bar: {
+	// 		get value() {
+	// 			return obj.bar
+	// 		}
+	// 	}
+	// }
+
+	function toRef(obj, key) {
+		const wrapper = {
+			get value() {
+				return obj[key]
+			},
+			set value(val) {
+				obj[key] = val
+			}
+		}
+		Object.defineProperty(wrapper, '__v_isRef', {
+			value: true
+		})
+		return wrapper
+	}
+	const newObj = {
+		foo: toRef(obj, 'foo'),
+		bar: toRef(obj, 'bar')
+	}
+	function toRefs(obj) {
+		const ret = {}
+		for (const key in obj) {
+			ret[key] = toRef(obj, key)
+		}
+		return ret
+	}
+	const newObj1 = { ...toRefs(obj) }
+	effect(() => {
+		// 在副作用函数内通过新的对象 newObj 读取 foo 属性值
+		console.log(newObj.foo.value)
+	})
+	// 正常触发响应
+	obj.foo = 100
+</script>
