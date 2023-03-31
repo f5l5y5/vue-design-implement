@@ -1,0 +1,40 @@
+<script>
+	// obj 是响应式数据
+	const obj = reactive({ foo: 1, bar: 2 })
+	function toRef(obj, key) {
+		const wrapper = {
+			get value() {
+				return obj[key]
+			},
+			set value(val) {
+				obj[key] = val
+			}
+		}
+		Object.defineProperty(wrapper, '__v_isRef', {
+			value: true
+		})
+		return wrapper
+	}
+	// const newObj = {
+	// 	foo: toRef(obj, 'foo'),
+	// 	bar: toRef(obj, 'bar')
+	// }
+	function toRefs(obj) {
+		const ret = {}
+		for (const key in obj) {
+			ret[key] = toRef(obj, key)
+		}
+		return ret
+	}
+	const newObj1 = { ...toRefs(obj) }
+	newObj1.foo.value
+	newObj1.bar.value
+	// 需要自动脱离ref的能力
+
+	effect(() => {
+		// 在副作用函数内通过新的对象 newObj 读取 foo 属性值
+		console.log(newObj.foo.value)
+	})
+	// 正常触发响应
+	obj.foo = 100
+</script>
