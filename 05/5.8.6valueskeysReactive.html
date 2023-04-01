@@ -10,7 +10,7 @@
 	function shallowReadonly(data) {
 		return createReactive(data, true, true)
 	}
-	function reactive(obj) {
+	export function reactive(obj) {
 		// 优先通过原始对象 obj 寻找之前创建的代理对象，如果找到了，直接返回已有的代理对象
 		const existionProxy = reactiveMap.get(obj)
 		if (existionProxy) return existionProxy
@@ -436,7 +436,7 @@
 	let activeEffect
 	const effectStack = []
 
-	function effect(fn, options = {}) {
+	export function effect(fn, options = {}) {
 		const effectFn = () => {
 			cleanup(effectFn) // 调用 cleanup 函数完成清除工作
 			activeEffect = effectFn //当 effectFn 执行时，将其设置为当前激活的副作用函数
