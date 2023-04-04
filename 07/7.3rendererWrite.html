@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+	</head>
+	<body>
+		<div id="app"></div>
+
+		<script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global.js"></script>
+		<script>
+			const vnode = {
+				type: 'h1',
+				children: 'hello'
+			}
+			// 创建一个渲染器
+			const renderer = createRenderer()
+			// 调用 render 函数渲染该 vnode
+			renderer.render(vnode, document.querySelector('#app'))
+			/**  */
+			function createRenderer() {
+				function patch(n1, n2, container) {
+					// 渲染逻辑
+					// 如果 n1 不存在，意味着挂载，则调用 mountElement 函数完成挂载
+					if (!n1) {
+						mountElement(n2, container)
+					} else {
+						// TODO n1 存在，意味着打补丁，暂时省略
+					}
+				}
+
+				function mountElement(vnode, container) {
+					// 创建 DOM 元素
+					const el = document.createElement(vnode.type)
+					// 处理子节点，如果子节点是字符串，代表元素具有文本节点
+					if (typeof vnode.children === 'string') {
+						// 因此只需要设置元素的 textContent 属性即可
+						el.textContent = vnode.children
+					}
+					// 将元素添加到容器中
+					container.appendChild(el)
+				}
+
+				function render(vnode, container) {
+					// 如果vnode存在 进行比较
+					if (vnode) {
+						patch(container._vnode, vnode, container)
+					} else {
+						// 没有新的节点 且有旧节点
+						if (container._vnode) {
+							container.innerHTML = ''
+						}
+					}
+					// 更新并缓存节点
+					container._vnode = vnode
+				}
+				return {
+					render
+				}
+			}
+		</script>
+	</body>
+</html>
